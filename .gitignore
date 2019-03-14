@@ -2,3 +2,9 @@
 .idea/
 CMakeLists.txt
 cmake-build-debug/
+utils.o
+server
+kissdb.o
+client
+server.dSYM/
+client.dSYM/

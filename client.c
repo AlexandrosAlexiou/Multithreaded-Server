@@ -7,8 +7,6 @@
    (c) S. Anastasiadis, G. Kappes 2016
 
 */
-
-
 #include "utils.h"
 
 #define SERVER_PORT     6767
