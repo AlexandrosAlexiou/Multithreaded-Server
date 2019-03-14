@@ -9,15 +9,17 @@
 
 #include<stdlib.h>
 #include <time.h>
-/*
- * This is the main queue structure
- */
 
+/*
+ * This is the type of variable that will be stored in the queue
+ */
 typedef struct qelement{
     int newfd;
     // time_t begin;
 }qelement;
-
+/*
+ * This is the main queue structure
+ */
 typedef struct queue{
     int capacity;
     int size;
@@ -26,9 +28,6 @@ typedef struct queue{
     qelement *elements;
 }queue;
 
-/*
- * This is the type of variable that will be stored in the queue
- */
 
 /*
  * This method creates a queue with maxElement number of elements and returns it
