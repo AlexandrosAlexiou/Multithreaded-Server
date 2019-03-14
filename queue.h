@@ -16,7 +16,7 @@
 typedef struct qelement
 {
     int newfd;
-    time_t begin;
+    // time_t begin;
 }qelement;
 
 typedef struct queue
@@ -98,7 +98,6 @@ void push(queue *Q, qelement element)
         Q->elements[Q->rear] = element;
     }
 }
-
 /*Returns the top most element of the queue*/
 qelement peek(queue *Q)
 {

@@ -8,3 +8,4 @@ kissdb.o
 client
 server.dSYM/
 client.dSYM/
+mydb.db

@@ -29,15 +29,15 @@ queue* q;
 
 // Definition of the operation type.
 typedef enum operation {
-  PUT,
-  GET
-} Operation; 
+    PUT,
+    GET
+} Operation;
 
 // Definition of the request.
 typedef struct request {
-  Operation operation;
-  char key[KEY_SIZE];  
-  char value[VALUE_SIZE];
+    Operation operation;
+    char key[KEY_SIZE];
+    char value[VALUE_SIZE];
 } Request;
 
 // Definition of the database.
@@ -50,47 +50,47 @@ KISSDB *db = NULL;
  * @return Initialized request on Success. NULL on Error.
  */
 Request *parse_request(char *buffer) {
-  char *token = NULL;
-  Request *req = NULL;
-  
-  // Check arguments.
-  if (!buffer)
-    return NULL;
-  
-  // Prepare the request.
-  req = (Request *) malloc(sizeof(Request));
-  memset(req->key, 0, KEY_SIZE);
-  memset(req->value, 0, VALUE_SIZE);
+    char *token = NULL;
+    Request *req = NULL;
 
-  // Extract the operation type.
-  token = strtok(buffer, ":");    
-  if (!strcmp(token, "PUT")) {
-    req->operation = PUT;
-  } else if (!strcmp(token, "GET")) {
-    req->operation = GET;
-  } else {
-    free(req);
-    return NULL;
-  }
-  
-  // Extract the key.
-  token = strtok(NULL, ":");
-  if (token) {
-    strncpy(req->key, token, KEY_SIZE);
-  } else {
-    free(req);
-    return NULL;
-  }
-  
-  // Extract the value.
-  token = strtok(NULL, ":");
-  if (token) {
-    strncpy(req->value, token, VALUE_SIZE);
-  } else if (req->operation == PUT) {
-    free(req);
-    return NULL;
-  }
-  return req;
+    // Check arguments.
+    if (!buffer)
+        return NULL;
+
+    // Prepare the request.
+    req = (Request *) malloc(sizeof(Request));
+    memset(req->key, 0, KEY_SIZE);
+    memset(req->value, 0, VALUE_SIZE);
+
+    // Extract the operation type.
+    token = strtok(buffer, ":");
+    if (!strcmp(token, "PUT")) {
+        req->operation = PUT;
+    } else if (!strcmp(token, "GET")) {
+        req->operation = GET;
+    } else {
+        free(req);
+        return NULL;
+    }
+
+    // Extract the key.
+    token = strtok(NULL, ":");
+    if (token) {
+        strncpy(req->key, token, KEY_SIZE);
+    } else {
+        free(req);
+        return NULL;
+    }
+
+    // Extract the value.
+    token = strtok(NULL, ":");
+    if (token) {
+        strncpy(req->value, token, VALUE_SIZE);
+    } else if (req->operation == PUT) {
+        free(req);
+        return NULL;
+    }
+    return req;
 }
 
 /*
@@ -100,53 +100,55 @@ Request *parse_request(char *buffer) {
  * @return
  */
 void process_request(const int socket_fd) {
-  char response_str[BUF_SIZE], request_str[BUF_SIZE];
+    char response_str[BUF_SIZE], request_str[BUF_SIZE];
     int numbytes = 0;
     Request *request = NULL;
 
     // Clean buffers.
     memset(response_str, 0, BUF_SIZE);
     memset(request_str, 0, BUF_SIZE);
-    
+
     // receive message.
     numbytes = read_str_from_socket(socket_fd, request_str, BUF_SIZE);
-    
+
     // parse the request.
     if (numbytes) {
-      request = parse_request(request_str);
-      if (request) {
-        switch (request->operation) {
-          case GET:
-            // Read the given key from the database.
-            if (KISSDB_get(db, request->key, request->value))
-              sprintf(response_str, "GET ERROR\n");
-            else
-              sprintf(response_str, "GET OK: %s\n", request->value);
-            break;
-          case PUT:
-            // Write the given key/value pair to the database.
-            if (KISSDB_put(db, request->key, request->value)) 
-              sprintf(response_str, "PUT ERROR\n");
-            else
-              sprintf(response_str, "PUT OK\n");
-            break;
-          default:
-            // Unsupported operation.
-            sprintf(response_str, "UNKOWN OPERATION\n");
+        request = parse_request(request_str);
+        if (request) {
+            switch (request->operation) {
+                case GET:
+                    // Read the given key from the database.
+                    if (KISSDB_get(db, request->key, request->value))
+                        sprintf(response_str, "GET ERROR\n");
+                    else
+                        sprintf(response_str, "GET OK: %s\n", request->value);
+                    break;
+                case PUT:
+                    // Write the given key/value pair to the database.
+                    if (KISSDB_put(db, request->key, request->value))
+                        sprintf(response_str, "PUT ERROR\n");
+                    else
+                        sprintf(response_str, "PUT OK\n");
+                    break;
+                default:
+                    // Unsupported operation.
+                    sprintf(response_str, "UNKOWN OPERATION\n");
+            }
+            // Reply to the client.
+            write_str_to_socket(socket_fd, response_str, strlen(response_str));
+            close(socket_fd);
+
+            if (request)
+                free(request);
+            request = NULL;
+            return;
         }
-        // Reply to the client.
-        write_str_to_socket(socket_fd, response_str, strlen(response_str));
-        if (request)
-          free(request);
-        request = NULL;
-        return;
-      }
     }
     // Send an Error reply to the client.
     sprintf(response_str, "FORMAT ERROR\n");
     write_str_to_socket(socket_fd, response_str, strlen(response_str));
-}
 
+}
 /*
  * This method locks down the connection queue then utilizes pthread_cond_wait() and waits
  * for a signal to indicate that there is an element in the queue. Then it proceeds to pop the
@@ -154,41 +156,44 @@ void process_request(const int socket_fd) {
  */
 int queue_get()
 {
-  /*Locks the mutex*/
-  pthread_mutex_lock(&mutex);
+    /*Locks the mutex*/
+    pthread_mutex_lock(&mutex);
 
-  /*Wait for element to become available*/
-  while(empty(q) == 1)
-  {
-    printf("Thread %lu: \tWaiting for Connection\n", pthread_self());
-    if(pthread_cond_wait(&cond, &mutex) != 0)
+    /*Wait for element to become available*/
+    while(empty(q) == 1)
     {
-      perror("Cond Wait Error");
+        printf("Thread %lu: \tWaiting for Connection\n", pthread_self());
+        int k;
+        if((k=pthread_cond_wait(&cond, &mutex)) != 0)
+        {
+            //printf("%d\n",k);
+            perror("Cond Wait Error");
+        }
     }
-  }
 
-  /*We got an element, pass it back and unblock*/
-  int val =peek(q).newfd;
-  pop(q);
+    /*We got an element, pass it back and unblock*/
+    int val =peek(q).newfd;
+    pop(q);
 
-  /*Unlocks the mutex*/
-  pthread_mutex_unlock(&mutex);
+    /*Unlocks the mutex*/
+    pthread_mutex_unlock(&mutex);
 
-  return val;
+    return val;
 }
 
 static void* connectionHandler()
 {
-  int connfd = 0;
+    int connfd = 0;
 
-  /*Wait until tasks is available*/
-  while(1)
-  {
-    connfd = queue_get();
-    printf("Handler %lu: \tProcessing\n", pthread_self());
-    /*Execute*/
-    process_request(connfd);
-  }
+    /*Wait until tasks is available*/
+    while(1)
+    {
+        connfd = queue_get();
+        printf("Handler %lu: \tProcessing\n", pthread_self());
+        /*Execute*/
+        process_request(connfd);
+    }
+
 }
 
 /*
@@ -198,17 +203,17 @@ static void* connectionHandler()
  */
 void queue_add(int value)
 {
-  /*Locks the mutex*/
-  pthread_mutex_lock(&mutex);
-  qelement temp;
-  temp.newfd=value;
-  push(q,temp);
+    /*Locks the mutex*/
+    pthread_mutex_lock(&mutex);
+    qelement temp;
+    temp.newfd=value;
+    push(q,temp);
 
-  /*Unlocks the mutex*/
-  pthread_mutex_unlock(&mutex);
+    /*Unlocks the mutex*/
+    pthread_mutex_unlock(&mutex);
 
-  /* Signal waiting threads */
-  pthread_cond_signal(&cond);
+    /* Signal waiting threads */
+    pthread_cond_signal(&cond);
 }
 
 /*
@@ -218,77 +223,76 @@ void queue_add(int value)
  */
 int main() {
 
-  int socket_fd,              // listen on this socket for new connections
-      new_fd;                 // use this socket to service a new connection
-  socklen_t clen;
-  struct sockaddr_in server_addr,  // my address information
-                     client_addr;  // connector's address information
-  /*Initialize the mutex global variable*/
-  pthread_mutex_init(&mutex,NULL);
-  /*Declare the thread pool array*/
-   pthread_t threadPool[10];
-  //create the queue
-  q = createQueue(10);
-  // create socket
-  if ((socket_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
-    ERROR("socket()");
+    int socket_fd,              // listen on this socket for new connections
+            new_fd;                 // use this socket to service a new connection
+    socklen_t clen;
+    struct sockaddr_in server_addr,  // my address information
+            client_addr;  // connector's address information
+    /*Initialize the mutex global variable*/
+    pthread_mutex_init(&mutex,NULL);
+    /*Declare the thread pool array*/
+    pthread_t threadPool[10];
+    //create the queue
+    q = createQueue(10);
+    // create socket
+    if ((socket_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
+        ERROR("socket()");
 
-  // Ignore the SIGPIPE signal in order to not crash when a
-  // client closes the connection unexpectedly.
-  signal(SIGPIPE, SIG_IGN);
-  
-  // create socket adress of server (type, IP-adress and port number)
-  bzero(&server_addr, sizeof(server_addr));
-  server_addr.sin_family = AF_INET;
-  server_addr.sin_addr.s_addr = htonl(INADDR_ANY);    // any local interface
-  server_addr.sin_port = htons(MY_PORT);
-  
-  // bind socket to address
-  if (bind(socket_fd, (struct sockaddr *) &server_addr, sizeof(server_addr)) == -1)
-    ERROR("bind()");
-  /*Make Thread Pool*/
-  for(int i = 0; i < 10; i++)
-  {
-    pthread_create(&threadPool[i], NULL, connectionHandler, (void *) NULL);
-  }
-  // start listening to socket for incomming connections
-  listen(socket_fd, MAX_PENDING_CONNECTIONS);
-  fprintf(stderr, "(Info) main: Listening for new connections on port %d ...\n", MY_PORT);
-  clen = sizeof(client_addr);
+    // Ignore the SIGPIPE signal in order to not crash when a
+    // client closes the connection unexpectedly.
+    signal(SIGPIPE, SIG_IGN);
 
-  // Allocate memory for the database.
-  if (!(db = (KISSDB *)malloc(sizeof(KISSDB)))) {
-    fprintf(stderr, "(Error) main: Cannot allocate memory for the database.\n");
-    return 1;
-  }
-  
-  // Open the database.
-  if (KISSDB_open(db, "mydb.db", KISSDB_OPEN_MODE_RWCREAT, HASH_SIZE, KEY_SIZE, VALUE_SIZE)) {
-    fprintf(stderr, "(Error) main: Cannot open the database.\n");
-    return 1;
-  }
+    // create socket adress of server (type, IP-address and port number)
+    bzero(&server_addr, sizeof(server_addr));
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_addr.s_addr = htonl(INADDR_ANY);    // any local interface
+    server_addr.sin_port = htons(MY_PORT);
 
-
-  // main loop: wait for new connection/requests
-  while (1) { 
-    // wait for incomming connection
-    if ((new_fd = accept(socket_fd, (struct sockaddr *)&client_addr, &clen)) == -1) {
-      ERROR("accept()");
+    // bind socket to address
+    if (bind(socket_fd, (struct sockaddr *) &server_addr, sizeof(server_addr)) == -1)
+        ERROR("bind()");
+    /*Make Thread Pool*/
+    for(int i = 0; i < 10; i++)
+    {
+        pthread_create(&threadPool[i], NULL, connectionHandler, (void *) NULL);
     }
-    queue_add(new_fd);
-    // got connection, serve request
-    fprintf(stderr, "(Info) main: Got connection from '%s'\n", inet_ntoa(client_addr.sin_addr));
-  }  
+    // start listening to socket for incoming connections
 
-  // Destroy the database.
-  // Close the database.
-  KISSDB_close(db);
+    clen = sizeof(client_addr);
 
-  // Free memory.
-  if (db)
-    free(db);
-  db = NULL;
+    // Allocate memory for the database.
+    if (!(db = (KISSDB *)malloc(sizeof(KISSDB)))) {
+        fprintf(stderr, "(Error) main: Cannot allocate memory for the database.\n");
+        return 1;
+    }
 
-  return 0; 
+    // Open the database.
+    if (KISSDB_open(db, "mydb.db", KISSDB_OPEN_MODE_RWCREAT, HASH_SIZE, KEY_SIZE, VALUE_SIZE)) {
+        fprintf(stderr, "(Error) main: Cannot open the database.\n");
+        return 1;
+    }
+    listen(socket_fd, MAX_PENDING_CONNECTIONS);
+    fprintf(stderr, "(Info) main: Listening for new connections on port %d ...\n", MY_PORT);
+
+    // main loop: wait for new connection/requests
+    while (1) {
+        // wait for incomming connection
+        if ((new_fd = accept(socket_fd, (struct sockaddr *)&client_addr, &clen)) == -1) {
+            ERROR("accept()");
+        }
+        queue_add(new_fd);
+        // got connection, serve request
+        fprintf(stderr, "(Info) main: Got connection from '%s'\n", inet_ntoa(client_addr.sin_addr));
+    }
+
+    // Destroy the database.
+    // Close the database.
+    KISSDB_close(db);
+
+    // Free memory.
+    if (db)
+        free(db);
+    db = NULL;
+
+    return 0;
 }
-
