@@ -13,14 +13,14 @@
 /*
  * This is the type of variable that will be stored in the queue
  */
-typedef struct qelement{
+typedef struct{
     int newfd;
     // time_t begin;
 }qelement;
 /*
  * This is the main queue structure
  */
-typedef struct queue{
+typedef struct{
     int capacity;
     int size;
     int front;
@@ -52,12 +52,7 @@ queue* createQueue(int maxElements){
  * This method returns 1 if empty, and 0 if not empty
  */
 int empty(queue *Q){
-    if(Q->size == 0){
-        return 1;
-    }
-    else{
-        return 0;
-    }
+    return (Q->size == 0);
 }
 
 /*This method pops an element off the queue*/
