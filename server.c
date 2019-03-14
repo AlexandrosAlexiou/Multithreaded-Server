@@ -13,6 +13,7 @@
 #include <sys/stat.h>
 #include "utils.h"
 #include "kissdb.h"
+#include "queue.h"
 
 #define MY_PORT                 6767
 #define BUF_SIZE                1160
@@ -20,6 +21,11 @@
 #define HASH_SIZE               1024
 #define VALUE_SIZE              1024
 #define MAX_PENDING_CONNECTIONS   10
+
+/*Declare global variables*/
+pthread_mutex_t mutex;
+pthread_cond_t cond;
+queue* q;
 
 // Definition of the operation type.
 typedef enum operation {
@@ -142,6 +148,70 @@ void process_request(const int socket_fd) {
 }
 
 /*
+ * This method locks down the connection queue then utilizes pthread_cond_wait() and waits
+ * for a signal to indicate that there is an element in the queue. Then it proceeds to pop the
+ * connection off the queue and return it
+ */
+int queue_get()
+{
+  /*Locks the mutex*/
+  pthread_mutex_lock(&mutex);
+
+  /*Wait for element to become available*/
+  while(empty(q) == 1)
+  {
+    printf("Thread %lu: \tWaiting for Connection\n", pthread_self());
+    if(pthread_cond_wait(&cond, &mutex) != 0)
+    {
+      perror("Cond Wait Error");
+    }
+  }
+
+  /*We got an element, pass it back and unblock*/
+  int val =peek(q).newfd;
+  pop(q);
+
+  /*Unlocks the mutex*/
+  pthread_mutex_unlock(&mutex);
+
+  return val;
+}
+
+static void* connectionHandler()
+{
+  int connfd = 0;
+
+  /*Wait until tasks is available*/
+  while(1)
+  {
+    connfd = queue_get();
+    printf("Handler %lu: \tProcessing\n", pthread_self());
+    /*Execute*/
+    process_request(connfd);
+  }
+}
+
+/*
+ * This method locks down the connection queue then utilizes the queue.h push function
+ * to add a connection to the queue. Then the mutex is unlocked and cond_signal is set
+ * to alarm threads in cond_wait that a connection as arrived for reading
+ */
+void queue_add(int value)
+{
+  /*Locks the mutex*/
+  pthread_mutex_lock(&mutex);
+  qelement temp;
+  temp.newfd=value;
+  push(q,temp);
+
+  /*Unlocks the mutex*/
+  pthread_mutex_unlock(&mutex);
+
+  /* Signal waiting threads */
+  pthread_cond_signal(&cond);
+}
+
+/*
  * @name main - The main routine.
  *
  * @return 0 on success, 1 on error.
@@ -153,7 +223,12 @@ int main() {
   socklen_t clen;
   struct sockaddr_in server_addr,  // my address information
                      client_addr;  // connector's address information
-
+  /*Initialize the mutex global variable*/
+  pthread_mutex_init(&mutex,NULL);
+  /*Declare the thread pool array*/
+   pthread_t threadPool[10];
+  //create the queue
+  q = createQueue(10);
   // create socket
   if ((socket_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
     ERROR("socket()");
@@ -171,7 +246,11 @@ int main() {
   // bind socket to address
   if (bind(socket_fd, (struct sockaddr *) &server_addr, sizeof(server_addr)) == -1)
     ERROR("bind()");
-  
+  /*Make Thread Pool*/
+  for(int i = 0; i < 10; i++)
+  {
+    pthread_create(&threadPool[i], NULL, connectionHandler, (void *) NULL);
+  }
   // start listening to socket for incomming connections
   listen(socket_fd, MAX_PENDING_CONNECTIONS);
   fprintf(stderr, "(Info) main: Listening for new connections on port %d ...\n", MY_PORT);
@@ -189,18 +268,16 @@ int main() {
     return 1;
   }
 
+
   // main loop: wait for new connection/requests
   while (1) { 
     // wait for incomming connection
     if ((new_fd = accept(socket_fd, (struct sockaddr *)&client_addr, &clen)) == -1) {
       ERROR("accept()");
     }
-    
+    queue_add(new_fd);
     // got connection, serve request
     fprintf(stderr, "(Info) main: Got connection from '%s'\n", inet_ntoa(client_addr.sin_addr));
-    
-    process_request(new_fd);
-    close(new_fd);
   }  
 
   // Destroy the database.

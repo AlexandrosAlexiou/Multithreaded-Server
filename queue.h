@@ -12,6 +12,13 @@
 /*
  * This is the main queue structure
  */
+
+typedef struct qelement
+{
+    int newfd;
+    time_t begin;
+}qelement;
+
 typedef struct queue
 {
     int capacity;
@@ -24,11 +31,7 @@ typedef struct queue
 /*
  * This is the type of variable that will be stored in the queue
  */
-typedef struct qelement
-{
-    int newfd;
-    time_t begin;
-}qelement;
+
 /*
  * This method creates a queue with maxElement number of elements and returns it
  */

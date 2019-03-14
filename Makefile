@@ -7,8 +7,8 @@ all: client server
 client: client.c utils.o
 	$(CC) $(CFLAGS) -o client client.c utils.o -lpthread
 
-server: server.c utils.o kissdb.o queue.o
-	$(CC) $(CFLAGS) -o server server.c utils.o kissdb.o queue.o -lpthread
+server: server.c utils.o kissdb.o queue.h
+	$(CC) $(CFLAGS) -o server server.c utils.o kissdb.o -lpthread
 
 %.o : %.c
 	$(CC) $(CFLAGS) -c $<
