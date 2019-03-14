@@ -249,8 +249,8 @@ int main() {
     if (bind(socket_fd, (struct sockaddr *) &server_addr, sizeof(server_addr)) == -1)
         ERROR("bind()");
     /*Make Thread Pool*/
-    for(int i = 0; i < 10; i++)
-    {
+    int i=0;
+    for( i= 0; i < 10; i++){
         pthread_create(&threadPool[i], NULL, connectionHandler, (void *) NULL);
     }
     // start listening to socket for incoming connections
