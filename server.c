@@ -155,14 +155,12 @@ void process_request(const int socket_fd) {
  * for a signal to indicate that there is an element in the queue. Then it proceeds to pop the
  * connection off the queue and return it
  */
-int queue_get()
-{
+int queue_get(){
     /*Locks the mutex*/
     pthread_mutex_lock(&mutex);
 
     /*Wait for element to become available*/
-    while(empty(q) == 1)
-    {
+    while(empty(q) == 1){
         printf("Thread %lu: \tWaiting for Connection\n", pthread_self());
         int k;
         if((k=pthread_cond_wait(&cond, &mutex)) != 0)
@@ -182,13 +180,11 @@ int queue_get()
     return val;
 }
 
-static void* connectionHandler()
-{
+static void* connectionHandler(){
     int connfd = 0;
 
     /*Wait until tasks is available*/
-    while(1)
-    {
+    while(1){
         connfd = queue_get();
         printf("Handler %lu: \tProcessing\n", pthread_self());
         /*Execute*/
@@ -203,8 +199,7 @@ static void* connectionHandler()
  * to add a connection to the queue. Then the mutex is unlocked and cond_signal is set
  * to alarm threads in cond_wait that a connection as arrived for reading
  */
-void queue_add(int value)
-{
+void queue_add(int value){
     /*Locks the mutex*/
     pthread_mutex_lock(&mutex);
     qelement temp;
