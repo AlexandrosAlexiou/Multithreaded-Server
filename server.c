@@ -14,6 +14,7 @@
 #include "utils.h"
 #include "kissdb.h"
 #include "queue.h"
+#include <pthread.h>
 
 #define MY_PORT                 6767
 #define BUF_SIZE                1160
@@ -193,6 +194,7 @@ static void* connectionHandler()
         /*Execute*/
         process_request(connfd);
     }
+    return NULL;
 
 }
 
@@ -280,6 +282,7 @@ int main() {
         if ((new_fd = accept(socket_fd, (struct sockaddr *)&client_addr, &clen)) == -1) {
             ERROR("accept()");
         }
+        //add request to queue
         queue_add(new_fd);
         // got connection, serve request
         fprintf(stderr, "(Info) main: Got connection from '%s'\n", inet_ntoa(client_addr.sin_addr));
