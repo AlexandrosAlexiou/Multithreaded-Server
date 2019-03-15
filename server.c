@@ -14,7 +14,7 @@
 #include "utils.h"
 #include "kissdb.h"
 #include "queue.h"
-#include <pthread.h>
+#include <sys/time.h>
 
 #define MY_PORT                 6767
 #define BUF_SIZE                1160
@@ -27,9 +27,10 @@
 pthread_mutex_t mutex;
 pthread_cond_t cond;
 queue* q;
-int ttotal_waiting_time;
+long int ttotal_waiting_time;
 int total_service_time;
 int completed_requests;
+struct timeval tv0;
 
 // Definition of the operation type.
 typedef enum operation {
@@ -158,7 +159,7 @@ void process_request(const int socket_fd) {
  * for a signal to indicate that there is an element in the queue. Then it proceeds to pop the
  * connection off the queue and return it
  */
-int queue_get(){
+qelement queue_get(){
     /*Locks the mutex*/
     pthread_mutex_lock(&mutex);
 
@@ -174,13 +175,15 @@ int queue_get(){
     }
 
     /*We got an element, pass it back and unblock*/
-    int val =peek(q).newfd;
+    qelement request;
+    request=peek(q);
     pop(q);
-
+    gettimeofday(&tv0, NULL);
+    ttotal_waiting_time=ttotal_waiting_time+(tv0.tv_sec-request.start_time);
     /*Unlocks the mutex*/
     pthread_mutex_unlock(&mutex);
 
-    return val;
+    return request;
 }
 
 static void* connectionHandler(){
@@ -188,7 +191,7 @@ static void* connectionHandler(){
 
     /*Wait until tasks is available*/
     while(1){
-        connfd = queue_get();
+        connfd = queue_get().newfd;
         printf("Handler %lu: \tProcessing\n", pthread_self());
         /*Execute*/
         process_request(connfd);
@@ -202,12 +205,11 @@ static void* connectionHandler(){
  * to add a connection to the queue. Then the mutex is unlocked and cond_signal is set
  * to alarm threads in cond_wait that a connection as arrived for reading
  */
-void queue_add(int value,time_t begin){
+void queue_add(qelement request){
     /*Locks the mutex*/
     pthread_mutex_lock(&mutex);
-    qelement temp;
-    temp.newfd=value;
-    push(q,temp);
+
+    push(q,request);
 
     /*Unlocks the mutex*/
     pthread_mutex_unlock(&mutex);
@@ -228,8 +230,11 @@ int main() {
     socklen_t clen;
     struct sockaddr_in server_addr,  // my address information
             client_addr;  // connector's address information
-    /*Initialize the mutex global variable*/
+    /*Initialize the mutex variable*/
     pthread_mutex_init(&mutex,NULL);
+    /*Initialize the struct to get the statistics*/
+    struct timeval tv;
+    qelement currert_request;
     /*Declare the thread pool array*/
     pthread_t threadPool[10];
     //create the queue
@@ -280,8 +285,12 @@ int main() {
         if ((new_fd = accept(socket_fd, (struct sockaddr *)&client_addr, &clen)) == -1) {
             ERROR("accept()");
         }
+        gettimeofday(&tv, NULL);
         //add request to queue
-        queue_add(new_fd);
+        currert_request.newfd=new_fd;
+        currert_request.start_time=tv.tv_sec;
+
+        queue_add(currert_request);
 
 
         fprintf(stderr, "(Info) main: Got connection from '%s'\n", inet_ntoa(client_addr.sin_addr));
