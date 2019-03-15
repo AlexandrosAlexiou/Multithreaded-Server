@@ -15,7 +15,8 @@
  */
 typedef struct{
     int newfd;
-    // time_t begin;
+    time_t begin ;
+    time_t processbegun;
 }qelement;
 /*
  * This is the main queue structure

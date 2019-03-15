@@ -27,6 +27,9 @@
 pthread_mutex_t mutex;
 pthread_cond_t cond;
 queue* q;
+int ttotal_waiting_time;
+int total_service_time;
+int completed_requests;
 
 // Definition of the operation type.
 typedef enum operation {
@@ -199,7 +202,7 @@ static void* connectionHandler(){
  * to add a connection to the queue. Then the mutex is unlocked and cond_signal is set
  * to alarm threads in cond_wait that a connection as arrived for reading
  */
-void queue_add(int value){
+void queue_add(int value,time_t begin){
     /*Locks the mutex*/
     pthread_mutex_lock(&mutex);
     qelement temp;
@@ -279,7 +282,8 @@ int main() {
         }
         //add request to queue
         queue_add(new_fd);
-        // got connection, serve request
+
+
         fprintf(stderr, "(Info) main: Got connection from '%s'\n", inet_ntoa(client_addr.sin_addr));
     }
 
