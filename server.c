@@ -27,7 +27,7 @@
 pthread_mutex_t mutex;
 pthread_cond_t cond;
 queue* q;
-long int ttotal_waiting_time;
+long int total_waiting_time;
 int total_service_time;
 int completed_requests;
 struct timeval tv0;
@@ -179,7 +179,7 @@ qelement queue_get(){
     request=peek(q);
     pop(q);
     gettimeofday(&tv0, NULL);
-    ttotal_waiting_time=ttotal_waiting_time+(tv0.tv_sec-request.start_time);
+    total_waiting_time=total_waiting_time+(tv0.tv_sec-request.start_time);
     /*Unlocks the mutex*/
     pthread_mutex_unlock(&mutex);
 
@@ -217,7 +217,22 @@ void queue_add(qelement request){
     /* Signal waiting threads */
     pthread_cond_signal(&cond);
 }
+void stopHandler(int sig){
+    printf("ctrl Z pressed\n");
+    printf("Time stats to be added here \n");
+    signal(SIGTSTP,stopHandler);
+    KISSDB_close(db);
 
+    // Free memory.
+    if (db)
+        free(db);
+    db = NULL;
+    //printf("%d",getpid());
+    // kill(getpid(),SIGKILL);
+    exit(1);
+    //lets get out of here
+
+}
 /*
  * @name main - The main routine.
  *
@@ -231,6 +246,7 @@ int main() {
     struct sockaddr_in server_addr,  // my address information
             client_addr;  // connector's address information
     /*Initialize the mutex variable*/
+    signal(SIGTSTP,stopHandler);
     pthread_mutex_init(&mutex,NULL);
     /*Initialize the struct to get the statistics*/
     struct timeval tv;
