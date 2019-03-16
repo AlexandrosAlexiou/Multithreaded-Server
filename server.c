@@ -31,6 +31,7 @@ long int total_waiting_time;
 int total_service_time;
 int completed_requests;
 struct timeval tv0;
+struct timeval tv1;
 
 // Definition of the operation type.
 typedef enum operation {
@@ -194,7 +195,16 @@ static void* connectionHandler(){
         connfd = queue_get().newfd;
         printf("Handler %lu: \tProcessing\n", pthread_self());
         /*Execute*/
+        gettimeofday(&tv0, NULL);
         process_request(connfd);
+        gettimeofday(&tv1, NULL);
+        /*Locks the mutex*/
+        pthread_mutex_lock(&mutex);
+        completed_requests+=1;
+        total_service_time+=(tv1.tv_sec-tv0.tv_sec);
+        /*Unlocks the mutex*/
+        pthread_mutex_unlock(&mutex);
+
     }
     return NULL;
 
@@ -220,6 +230,8 @@ void queue_add(qelement request){
 void stopHandler(int sig){
     printf("ctrl Z pressed\n");
     printf("Total waiting time in queue: %ld \n",total_waiting_time);
+    printf("Total service time: %ld \n",total_service_time);
+    printf("Completed requests %ld \n",completed_requests);
     signal(SIGTSTP,stopHandler);
     KISSDB_close(db);
 
