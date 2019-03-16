@@ -219,7 +219,7 @@ void queue_add(qelement request){
 }
 void stopHandler(int sig){
     printf("ctrl Z pressed\n");
-    printf("Time stats to be added here \n");
+    printf("Total waiting time in queue: %ld \n",total_waiting_time);
     signal(SIGTSTP,stopHandler);
     KISSDB_close(db);
 
@@ -230,7 +230,6 @@ void stopHandler(int sig){
     //printf("%d",getpid());
     // kill(getpid(),SIGKILL);
     exit(1);
-    //lets get out of here
 
 }
 /*
