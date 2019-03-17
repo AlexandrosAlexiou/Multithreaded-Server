@@ -27,11 +27,10 @@
 pthread_mutex_t mutex;
 pthread_cond_t cond;
 queue* q;
-long int total_waiting_time;
+double total_waiting_time;
 int total_service_time;
 int completed_requests;
-struct timeval tv0;
-struct timeval tv1;
+
 
 // Definition of the operation type.
 typedef enum operation {
@@ -161,6 +160,13 @@ void process_request(const int socket_fd) {
  * connection off the queue and return it
  */
 qelement queue_get(){
+    struct timeval tvwaitinq;
+    double secs_now;
+    double msecs_now;
+
+    double secs_req;
+    double msecs_req;
+
     /*Locks the mutex*/
     pthread_mutex_lock(&mutex);
 
@@ -179,8 +185,21 @@ qelement queue_get(){
     qelement request;
     request=peek(q);
     pop(q);
-    gettimeofday(&tv0, NULL);
-    total_waiting_time=total_waiting_time+(tv0.tv_usec-request.start_time);
+    //Request time of pop
+    gettimeofday(&tvwaitinq,NULL);
+    secs_now=tvwaitinq.tv_sec;
+    msecs_now=tvwaitinq.tv_usec;
+    double conversion;
+    conversion=msecs_now/(float)1000000;
+    secs_now+=conversion;
+    //Request start time
+    secs_req=request.tv.tv_sec;
+    msecs_req=request.tv.tv_usec;
+    double conversion2;
+    conversion2=msecs_req/(float)1000000;
+    secs_req+=conversion2;
+    total_waiting_time+=secs_now-secs_req;
+
     /*Unlocks the mutex*/
     pthread_mutex_unlock(&mutex);
 
@@ -189,19 +208,19 @@ qelement queue_get(){
 
 static void* connectionHandler(){
     int connfd = 0;
-
+    qelement current_request;
+    struct timeval tvprocessdone;
     /*Wait until tasks is available*/
     while(1){
-        connfd = queue_get().newfd;
+        current_request = queue_get();
+        connfd=current_request.fd;
         printf("Handler %lu: \tProcessing\n", pthread_self());
         /*Execute*/
-        gettimeofday(&tv0, NULL);
         process_request(connfd);
-        gettimeofday(&tv1, NULL);
+
         /*Locks the mutex*/
         pthread_mutex_lock(&mutex);
-        completed_requests+=1;
-        total_service_time+=(tv1.tv_usec-tv0.tv_usec);
+
         /*Unlocks the mutex*/
         pthread_mutex_unlock(&mutex);
 
@@ -314,8 +333,10 @@ int main() {
         }
         gettimeofday(&tv, NULL);
         //add request to queue
-        currert_request.newfd=new_fd;
-        currert_request.start_time=tv.tv_usec;
+        currert_request.fd=new_fd;
+        currert_request.tv.tv_usec=gettimeofday(&tv,NULL);
+        currert_request.tv.tv_sec=gettimeofday(&tv,NULL);
+
 
         queue_add(currert_request);
 

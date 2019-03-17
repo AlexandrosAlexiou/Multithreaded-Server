@@ -1,5 +1,5 @@
 //
-// Created by Alex Alexiou on 2019-03-14.
+// Created by Alex Alexiou on 2019-03-10.
 //
 
 #ifndef MULTITHREADED_SERVER_QUEUE_H
@@ -11,11 +11,11 @@
 #include <time.h>
 
 /*
- * This is the type of variable that will be stored in the queue
+ * This is the type of variable that will be stored in the queue(request)
  */
 typedef struct{
-    int newfd;
-    time_t start_time;
+    int fd;
+    struct timeval tv;
 }qelement;
 /*
  * This is the main queue structure
@@ -49,7 +49,7 @@ queue* createQueue(int maxElements){
 }
 
 /*
- * This method returns 1 if empty, and 0 if not empty
+ * This method returns 1 if queue is empty, and 0 if not empty
  */
 int empty(queue *Q){
     return (Q->size == 0);
@@ -80,7 +80,7 @@ void push(queue *Q, qelement element){
         Q->elements[Q->rear] = element;
     }
 }
-/* Return the element which is at the front of the queue*/
+/* Returns the element which is at the front of the queue*/
 qelement peek(queue *Q){
     return Q->elements[Q->front];
 }
