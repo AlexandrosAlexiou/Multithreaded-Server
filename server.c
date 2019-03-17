@@ -180,7 +180,7 @@ qelement queue_get(){
     request=peek(q);
     pop(q);
     gettimeofday(&tv0, NULL);
-    total_waiting_time=total_waiting_time+(tv0.tv_sec-request.start_time);
+    total_waiting_time=total_waiting_time+(tv0.tv_usec-request.start_time);
     /*Unlocks the mutex*/
     pthread_mutex_unlock(&mutex);
 
@@ -201,7 +201,7 @@ static void* connectionHandler(){
         /*Locks the mutex*/
         pthread_mutex_lock(&mutex);
         completed_requests+=1;
-        total_service_time+=(tv1.tv_sec-tv0.tv_sec);
+        total_service_time+=(tv1.tv_usec-tv0.tv_usec);
         /*Unlocks the mutex*/
         pthread_mutex_unlock(&mutex);
 
@@ -229,8 +229,8 @@ void queue_add(qelement request){
 }
 void stopHandler(int sig){
     printf("ctrl Z pressed\n");
-    printf("Total waiting time in queue: %ld \n",total_waiting_time);
-    printf("Total service time: %ld \n",total_service_time);
+    printf("Total waiting time in queue(microsecs: %ld \n",total_waiting_time);
+    printf("Total service time: %ld  microsecs \n",total_service_time);
     printf("Completed requests %ld \n",completed_requests);
     signal(SIGTSTP,stopHandler);
     KISSDB_close(db);
@@ -315,7 +315,7 @@ int main() {
         gettimeofday(&tv, NULL);
         //add request to queue
         currert_request.newfd=new_fd;
-        currert_request.start_time=tv.tv_sec;
+        currert_request.start_time=tv.tv_usec;
 
         queue_add(currert_request);
 
