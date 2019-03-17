@@ -220,7 +220,7 @@ static void* connectionHandler(){
 
         /*Locks the mutex*/
         pthread_mutex_lock(&mutex);
-
+        completed_requests+=1;
         /*Unlocks the mutex*/
         pthread_mutex_unlock(&mutex);
 
@@ -247,9 +247,10 @@ void queue_add(qelement request){
     pthread_cond_signal(&cond);
 }
 void stopHandler(int sig){
-    printf("ctrl Z pressed\n");
-    printf("Total waiting time in queue(microsecs: %ld \n",total_waiting_time);
-    printf("Total service time: %ld  microsecs \n",total_service_time);
+    printf("\n\n");
+    printf("Stats:\n");
+    printf("Total waiting time in queue: %f \n",total_waiting_time);
+    //printf("Total service time: %ld  microsecs \n",total_service_time);
     printf("Completed requests %ld \n",completed_requests);
     signal(SIGTSTP,stopHandler);
     KISSDB_close(db);
@@ -279,7 +280,7 @@ int main() {
     signal(SIGTSTP,stopHandler);
     pthread_mutex_init(&mutex,NULL);
     /*Initialize the struct to get the statistics*/
-    struct timeval tv;
+    struct timeval tv0;
     qelement currert_request;
     /*Declare the thread pool array*/
     pthread_t threadPool[10];
@@ -331,11 +332,13 @@ int main() {
         if ((new_fd = accept(socket_fd, (struct sockaddr *)&client_addr, &clen)) == -1) {
             ERROR("accept()");
         }
-        gettimeofday(&tv, NULL);
+
         //add request to queue
+        gettimeofday(&tv0, NULL);
         currert_request.fd=new_fd;
-        currert_request.tv.tv_usec=gettimeofday(&tv,NULL);
-        currert_request.tv.tv_sec=gettimeofday(&tv,NULL);
+        currert_request.tv.tv_sec=tv0.tv_sec;
+        currert_request.tv.tv_usec=tv0.tv_usec;
+
 
 
         queue_add(currert_request);
