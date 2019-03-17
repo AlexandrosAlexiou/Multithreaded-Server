@@ -27,9 +27,9 @@
 pthread_mutex_t mutex;
 pthread_cond_t cond;
 queue* q;
-double total_waiting_time;
-int total_service_time;
-int completed_requests;
+double total_waiting_time=0.0;
+double total_service_time=0.0;
+int completed_requests=0;
 
 
 // Definition of the operation type.
@@ -209,17 +209,38 @@ qelement queue_get(){
 static void* connectionHandler(){
     int connfd = 0;
     qelement current_request;
+    struct timeval tvprocessstart;
     struct timeval tvprocessdone;
+    double sec_start;
+    double usec_start;
+    double sec_done;
+    double usec_done;
     /*Wait until tasks is available*/
     while(1){
         current_request = queue_get();
         connfd=current_request.fd;
         printf("Handler %lu: \tProcessing\n", pthread_self());
         /*Execute*/
+        gettimeofday(&tvprocessstart,NULL);
         process_request(connfd);
+        gettimeofday(&tvprocessdone,NULL);
 
         /*Locks the mutex*/
         pthread_mutex_lock(&mutex);
+        sec_start=tvprocessstart.tv_sec;
+        usec_start=tvprocessstart.tv_usec;
+        sec_done=tvprocessdone.tv_sec;
+        usec_done=tvprocessdone.tv_usec;
+
+        double conversion;
+        conversion=usec_start/(float)1000000;
+        sec_start+=conversion;
+        //Request start time
+        double conversion2;
+        conversion2=usec_done/(float)1000000;
+        sec_done+=conversion2;
+
+        total_service_time+=sec_done-sec_start;
         completed_requests+=1;
         /*Unlocks the mutex*/
         pthread_mutex_unlock(&mutex);
@@ -248,10 +269,15 @@ void queue_add(qelement request){
 }
 void stopHandler(int sig){
     printf("\n\n");
+    printf("\n\n");
+    printf("\n\n");
     printf("Stats:\n");
-    printf("Total waiting time in queue: %f \n",total_waiting_time);
-    //printf("Total service time: %ld  microsecs \n",total_service_time);
-    printf("Completed requests %ld \n",completed_requests);
+    printf("Total waiting time in queue: %f seconds \n",total_waiting_time);
+    printf("Total service time: %f in seconds \n",total_service_time);
+    printf("Completed requests: %d \n",completed_requests);
+    printf("Average time waiting in queue: %f seconds\n",total_waiting_time/(double)completed_requests );
+    printf("Average time to process a request: %f seconds\n",total_service_time/(double)completed_requests );
+
     signal(SIGTSTP,stopHandler);
     KISSDB_close(db);
 
