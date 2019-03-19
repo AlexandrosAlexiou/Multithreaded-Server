@@ -30,6 +30,8 @@ queue* q;
 double total_waiting_time=0.0;
 double total_service_time=0.0;
 int completed_requests=0;
+/*Declare the thread pool array*/
+pthread_t threadPool[10];
 
 
 // Definition of the operation type.
@@ -122,18 +124,26 @@ void process_request(const int socket_fd) {
         if (request) {
             switch (request->operation) {
                 case GET:
+                    /*Locks the mutex*/
+                    pthread_mutex_lock(&mutex);
                     // Read the given key from the database.
                     if (KISSDB_get(db, request->key, request->value))
                         sprintf(response_str, "GET ERROR\n");
                     else
                         sprintf(response_str, "GET OK: %s\n", request->value);
+                    /*Unlocks the mutex*/
+                    pthread_mutex_unlock(&mutex);
                     break;
                 case PUT:
+                    /*Locks the mutex*/
+                    pthread_mutex_lock(&mutex);
                     // Write the given key/value pair to the database.
                     if (KISSDB_put(db, request->key, request->value))
                         sprintf(response_str, "PUT ERROR\n");
                     else
                         sprintf(response_str, "PUT OK\n");
+                    /*Unlocks the mutex*/
+                    pthread_mutex_unlock(&mutex);
                     break;
                 default:
                     // Unsupported operation.
@@ -181,7 +191,7 @@ qelement queue_get(){
         }
     }
 
-    /*We got an element, pass it back and unblock*/
+    /*We got an element in the queue*/
     qelement request;
     request=peek(q);
     pop(q);
@@ -215,6 +225,7 @@ static void* connectionHandler(){
     double usec_start;
     double sec_done;
     double usec_done;
+    //signal(SIGTSTP,SIG_IGN);
     /*Wait until tasks is available*/
     while(1){
         current_request = queue_get();
@@ -267,7 +278,13 @@ void queue_add(qelement request){
     /* Signal waiting threads */
     pthread_cond_signal(&cond);
 }
-void stopHandler(int sig){
+void stopHandler(){
+    //signal(SIGTSTP,stopHandler);
+    // Free memory.
+    if (db)
+        free(db);
+    db = NULL;
+
     printf("\n\n");
     printf("\n\n");
     printf("\n\n");
@@ -278,15 +295,6 @@ void stopHandler(int sig){
     printf("Average time waiting in queue: %f seconds\n",total_waiting_time/(double)completed_requests );
     printf("Average time to process a request: %f seconds\n",total_service_time/(double)completed_requests );
 
-    signal(SIGTSTP,stopHandler);
-    KISSDB_close(db);
-
-    // Free memory.
-    if (db)
-        free(db);
-    db = NULL;
-    //printf("%d",getpid());
-    // kill(getpid(),SIGKILL);
     exit(1);
 
 }
@@ -302,14 +310,13 @@ int main() {
     socklen_t clen;
     struct sockaddr_in server_addr,  // my address information
             client_addr;  // connector's address information
+
+     signal(SIGTSTP,stopHandler);
     /*Initialize the mutex variable*/
-    signal(SIGTSTP,stopHandler);
     pthread_mutex_init(&mutex,NULL);
     /*Initialize the struct to get the statistics*/
     struct timeval tv0;
     qelement currert_request;
-    /*Declare the thread pool array*/
-    pthread_t threadPool[10];
     //create the queue
     q = createQueue(10);
     // create socket
@@ -332,7 +339,7 @@ int main() {
     /*Make Thread Pool*/
     int i=0;
     for( i= 0; i < 10; i++){
-        pthread_create(&threadPool[i], NULL, connectionHandler, (void *) NULL);
+        pthread_create(&threadPool[i], NULL, connectionHandler, NULL);
     }
     // start listening to socket for incoming connections
 
@@ -365,10 +372,7 @@ int main() {
         currert_request.tv.tv_sec=tv0.tv_sec;
         currert_request.tv.tv_usec=tv0.tv_usec;
 
-
-
         queue_add(currert_request);
-
 
         fprintf(stderr, "(Info) main: Got connection from '%s'\n", inet_ntoa(client_addr.sin_addr));
     }
