@@ -21,15 +21,18 @@
 #define VALUE_SIZE              1024
 #define MAX_PENDING_CONNECTIONS   10
 
+
 /*Declare global variables*/
+int writerscounter=0;
+int readerscounter=0;
 pthread_mutex_t mutex;
 pthread_cond_t cond;
-queue* q;
+Queue* q;
 double total_waiting_time=0.0;
 double total_service_time=0.0;
 int completed_requests=0;
 /*Declare the thread pool array*/
-pthread_t threadPool[10];
+pthread_t threadPool[MAX_PENDING_CONNECTIONS ];
 
 
 // Definition of the operation type.
@@ -124,24 +127,28 @@ void process_request(const int socket_fd) {
                 case GET:
                     /*Locks the mutex*/
                     pthread_mutex_lock(&mutex);
+                    readerscounter++;
                     // Read the given key from the database.
                     if (KISSDB_get(db, request->key, request->value))
                         sprintf(response_str, "GET ERROR\n");
                     else
                         sprintf(response_str, "GET OK: %s\n", request->value);
-                    /*Unlocks the mutex*/
                     pthread_mutex_unlock(&mutex);
                     break;
                 case PUT:
-                    /*Locks the mutex*/
-                    pthread_mutex_lock(&mutex);
-                    // Write the given key/value pair to the database.
-                    if (KISSDB_put(db, request->key, request->value))
-                        sprintf(response_str, "PUT ERROR\n");
-                    else
-                        sprintf(response_str, "PUT OK\n");
-                    /*Unlocks the mutex*/
-                    pthread_mutex_unlock(&mutex);
+                    if(writerscounter==0) {
+                        /*Locks the mutex*/
+                        pthread_mutex_lock(&mutex);
+                        writerscounter++;
+                        // Write the given key/value pair to the database.
+                        if (KISSDB_put(db, request->key, request->value))
+                            sprintf(response_str, "PUT ERROR\n");
+                        else
+                            sprintf(response_str, "PUT OK\n");
+                        /*Unlocks the mutex*/
+                        writerscounter--;
+                        pthread_mutex_unlock(&mutex);
+                    }
                     break;
                 default:
                     // Unsupported operation.
@@ -167,7 +174,7 @@ void process_request(const int socket_fd) {
  * for a signal to indicate that there is an element in the queue. Then it proceeds to pop the
  * connection off the queue and return it
  */
-qelement queue_get(){
+qElement queue_get(){
     struct timeval tvwaitinq;
     double secs_now;
     double msecs_now;
@@ -190,7 +197,7 @@ qelement queue_get(){
     }
 
     /*We got an element in the queue*/
-    qelement request;
+    qElement request;
     request=peek(q);
     pop(q);
     //Request time of pop
@@ -216,7 +223,7 @@ qelement queue_get(){
 
 static void* connectionHandler(){
     int connfd = 0;
-    qelement current_request;
+    qElement current_request;
     struct timeval tvprocessstart;
     struct timeval tvprocessdone;
     double sec_start;
@@ -264,7 +271,7 @@ static void* connectionHandler(){
  * to add a connection to the queue. Then the mutex is unlocked and cond_signal is set
  * to alarm threads in cond_wait that a connection as arrived for reading
  */
-void queue_add(qelement request){
+void queue_add(qElement request){
     /*Locks the mutex*/
     pthread_mutex_lock(&mutex);
 
@@ -277,13 +284,10 @@ void queue_add(qelement request){
     pthread_cond_signal(&cond);
 }
 void signalHandler(){
-    //signal(SIGTSTP,signalHandler);
     // Free memory.
     if (db)
         free(db);
     db = NULL;
-
-    printf("\n\n");
     printf("\n\n");
     printf("\n\n");
     printf("Stats:\n");
@@ -308,15 +312,15 @@ int main() {
     socklen_t clen;
     struct sockaddr_in server_addr,  // my address information
             client_addr;  // connector's address information
-
+    //initialize signal to terminate the server
      signal(SIGTSTP,signalHandler);
     /*Initialize the mutex variable*/
     pthread_mutex_init(&mutex,NULL);
-    /*Initialize the struct to get the statistics*/
+    /*Initialize the time struct to generate statistics*/
     struct timeval tv0;
-    qelement currert_request;
+    qElement currert_request;
     //create the queue
-    q = createQueue(10);
+    q = createQueue(MAX_PENDING_CONNECTIONS);
     // create socket
     if ((socket_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
         ERROR("socket()");
@@ -336,10 +340,9 @@ int main() {
         ERROR("bind()");
     /*Make Thread Pool*/
     int i=0;
-    for( i= 0; i < 10; i++){
+    for( i= 0; i < MAX_PENDING_CONNECTIONS ; i++){
         pthread_create(&threadPool[i], NULL, connectionHandler, NULL);
     }
-    // start listening to socket for incoming connections
 
     clen = sizeof(client_addr);
 
@@ -354,6 +357,7 @@ int main() {
         fprintf(stderr, "(Error) main: Cannot open the database.\n");
         return 1;
     }
+    // start listening to socket for incoming connections
     listen(socket_fd, MAX_PENDING_CONNECTIONS);
     fprintf(stderr, "(Info) main: Listening for new connections on port %d ...\n", MY_PORT);
 
@@ -374,7 +378,6 @@ int main() {
 
         fprintf(stderr, "(Info) main: Got connection from '%s'\n", inet_ntoa(client_addr.sin_addr));
     }
-
     // Destroy the database.
     // Close the database.
     KISSDB_close(db);

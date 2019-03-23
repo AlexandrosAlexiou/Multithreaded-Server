@@ -16,7 +16,7 @@
 typedef struct{
     int fd;
     struct timeval tv;
-}qelement;
+}qElement;
 /*
  * This is the main queue structure
  */
@@ -25,18 +25,18 @@ typedef struct{
     int size;
     int front;
     int rear;
-    qelement *elements;
-}queue;
+    qElement *elements;
+}Queue;
 
 
 /*
- * This method creates a queue with maxElement number of elements and returns it
+ * Creates a queue with maxElement number of elements and returns the address
  */
-queue* createQueue(int maxElements){
-    queue *Q;
-    Q = (queue *)malloc(sizeof(queue));
+Queue* createQueue(int maxElements){
+    Queue *Q;
+    Q = (Queue *)malloc(sizeof(Queue));
 
-    Q->elements = (qelement *)malloc(sizeof(qelement)*maxElements);
+    Q->elements = (qElement *)malloc(sizeof(qElement)*maxElements);
     Q->size = 0;
     Q->capacity = maxElements;
     Q->front = 0;
@@ -46,14 +46,14 @@ queue* createQueue(int maxElements){
 }
 
 /*
- * This method returns 1 if queue is empty, and 0 if not empty
+ *  returns 1 if queue is empty, and 0 if not empty
  */
-int empty(queue *Q){
+int empty(Queue *Q){
     return (Q->size == 0);
 }
 
-/*This method pops an element off the queue*/
-void pop(queue *Q){
+/* Pops an element off the queue*/
+void pop(Queue *Q){
     if(Q->size != 0){
         Q->size--;
         Q->front++;
@@ -65,7 +65,7 @@ void pop(queue *Q){
 }
 
 /*Pushes a new element onto the queue*/
-void push(queue *Q, qelement element){
+void push(Queue *Q, qElement element){
     if(Q->size != Q->capacity){
         Q->size++;
         Q->rear = Q->rear + 1;
@@ -77,7 +77,7 @@ void push(queue *Q, qelement element){
         Q->elements[Q->rear] = element;
     }
 }
-/* Returns the element which is at the front of the queue*/
-qelement peek(queue *Q){
+/* Returns the  front element of the queue*/
+qElement peek(Queue *Q){
     return Q->elements[Q->front];
 }
