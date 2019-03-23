@@ -6,36 +6,35 @@
 
 int main( int argc, char *argv[]){
 
-  pid_t pid=fork();
-  pid_t childPid;
-  if(pid<0){
-    perror("fork failed.");
-    exit(1);
-  }
-  if(pid== 0){
+  // Creating first child
+  int n1 = fork();
 
-    childPid = fork();
-    if (childPid < 0)
-    {
-      perror("second fork failed.");
-      exit(1);
-    }
-    else if(childPid == 0){
-    // inside of the child
-      char * args[]= {"./client","-a","localhost","-i","1","-p",NULL};
-      execv(args[0], args);
-    }else{
-    // inside of the parent
-      char * args[]= {"./client","-a","localhost","-i","1","-g",NULL};
-      execv(args[0], args);
-    }
+  // Creating second child. First child
+  // also executes this line and creates
+  // grandchild.
+  int n2 = fork();
 
-  }else{
-    char * args[]= {"./client","-a","localhost","-i","1","-p",NULL};
+  if (n1 > 0 && n2 > 0) {
+    //parent
     wait(NULL);
-
   }
+  else if (n1 == 0 && n2 > 0)
+  {
+    //first child
+    char * args[]= {"./client","-a","localhost","-i","1","-p",NULL};
+    execv(args[0], args);
+  }
+  else if (n1 > 0 && n2 == 0)
+  {
+    //second child
+    char * args[]= {"./client","-a","localhost","-i","1","-g",NULL};
+    execv(args[0], args);
+  }
+  else {
+    //third child
+    char * args[]= {"./client","-a","localhost","-i","1","-p",NULL};
+    execv(args[0], args);
+  }
+  return 0;
 
-
-  return 1;
 }

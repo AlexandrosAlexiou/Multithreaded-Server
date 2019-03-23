@@ -7,8 +7,6 @@
    (c) S. Anastasiadis, G. Kappes 2016
 
 */
-
-
 #include <signal.h>
 #include <sys/stat.h>
 #include "utils.h"
@@ -278,8 +276,8 @@ void queue_add(qelement request){
     /* Signal waiting threads */
     pthread_cond_signal(&cond);
 }
-void stopHandler(){
-    //signal(SIGTSTP,stopHandler);
+void signalHandler(){
+    //signal(SIGTSTP,signalHandler);
     // Free memory.
     if (db)
         free(db);
@@ -311,7 +309,7 @@ int main() {
     struct sockaddr_in server_addr,  // my address information
             client_addr;  // connector's address information
 
-     signal(SIGTSTP,stopHandler);
+     signal(SIGTSTP,signalHandler);
     /*Initialize the mutex variable*/
     pthread_mutex_init(&mutex,NULL);
     /*Initialize the struct to get the statistics*/

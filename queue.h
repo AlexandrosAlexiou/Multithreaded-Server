@@ -1,5 +1,5 @@
 //
-// Created by Alex Alexiou on 2019-03-10.
+// Created by Alexandros Alexiou on 2019-03-10.
 //
 
 #ifndef MULTITHREADED_SERVER_QUEUE_H
@@ -33,17 +33,14 @@ typedef struct{
  * This method creates a queue with maxElement number of elements and returns it
  */
 queue* createQueue(int maxElements){
-    /*Create a Queue*/
     queue *Q;
     Q = (queue *)malloc(sizeof(queue));
 
-    /* Initialize it's properties */
     Q->elements = (qelement *)malloc(sizeof(qelement)*maxElements);
     Q->size = 0;
     Q->capacity = maxElements;
     Q->front = 0;
     Q->rear = -1;
-
     /*Return the pointer*/
     return Q;
 }
