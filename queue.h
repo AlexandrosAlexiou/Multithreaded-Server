@@ -52,6 +52,13 @@ int empty(Queue *Q){
     return (Q->size == 0);
 }
 
+/*
+ *  returns 1 if queue is full, and 0 if not full
+ */
+int full(Queue *Q){
+    return (Q->size == Q->capacity);
+}
+
 /* Pops an element off the queue*/
 void pop(Queue *Q){
     if(Q->size != 0){

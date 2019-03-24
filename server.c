@@ -1,11 +1,8 @@
 /* server.c
-
-   Sample code of 
+   Sample code of
    Assignment L1: Simple multi-threaded key-value server
-   for the course MYY601 Operating Systems, University of Ioannina 
-
+   for the course MYY601 Operating Systems, University of Ioannina
    (c) S. Anastasiadis, G. Kappes 2016
-
 */
 #include <signal.h>
 #include <sys/stat.h>
@@ -313,7 +310,7 @@ int main() {
     struct sockaddr_in server_addr,  // my address information
             client_addr;  // connector's address information
     //initialize signal to terminate the server
-     signal(SIGTSTP,signalHandler);
+    signal(SIGTSTP,signalHandler);
     /*Initialize the mutex variable*/
     pthread_mutex_init(&mutex,NULL);
     /*Initialize the time struct to generate statistics*/
@@ -363,20 +360,22 @@ int main() {
 
     // main loop: wait for new connection/requests
     while (1) {
-        // wait for incomming connection
-        if ((new_fd = accept(socket_fd, (struct sockaddr *)&client_addr, &clen)) == -1) {
-            ERROR("accept()");
+        if(full(q) == 0){
+            // wait for incomming connection
+            if ((new_fd = accept(socket_fd, (struct sockaddr *)&client_addr, &clen)) == -1) {
+             ERROR("accept()");
+            }
+
+         //add request to queue
+            gettimeofday(&tv0, NULL);
+            currert_request.fd=new_fd;
+            currert_request.tv.tv_sec=tv0.tv_sec;
+            currert_request.tv.tv_usec=tv0.tv_usec;
+
+            queue_add(currert_request);
+
+            fprintf(stderr, "(Info) main: Got connection from '%s'\n", inet_ntoa(client_addr.sin_addr));
         }
-
-        //add request to queue
-        gettimeofday(&tv0, NULL);
-        currert_request.fd=new_fd;
-        currert_request.tv.tv_sec=tv0.tv_sec;
-        currert_request.tv.tv_usec=tv0.tv_usec;
-
-        queue_add(currert_request);
-
-        fprintf(stderr, "(Info) main: Got connection from '%s'\n", inet_ntoa(client_addr.sin_addr));
     }
     // Destroy the database.
     // Close the database.
