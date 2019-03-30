@@ -3,9 +3,10 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <signal.h>
 
 int main( int argc, char *argv[]){
-
+    signal(SIGCHLD,SIG_IGN);
   // Creating first child
   int n1 = fork();
 

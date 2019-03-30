@@ -281,6 +281,10 @@ void queue_add(qElement request){
     pthread_cond_signal(&cond);
 }
 void signalHandler(){
+    int i=0;
+    for(i= 0; i < MAX_PENDING_CONNECTIONS ; i++){
+        pthread_join(threadPool[i],NULL);
+    }
     // Free memory.
     if (db)
         free(db);
@@ -338,7 +342,10 @@ int main() {
     /*Make Thread Pool*/
     int i=0;
     for( i= 0; i < MAX_PENDING_CONNECTIONS ; i++){
-        pthread_create(&threadPool[i], NULL, connectionHandler, NULL);
+        pthread_attr_t attrs;
+        pthread_attr_init(&attrs);
+        pthread_attr_setdetachstate(&attrs, PTHREAD_CREATE_JOINABLE);
+        pthread_create(&threadPool[i], &attrs, connectionHandler, NULL);
     }
 
     clen = sizeof(client_addr);
