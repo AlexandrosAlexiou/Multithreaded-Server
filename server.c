@@ -23,7 +23,8 @@
 int writerscounter=0;
 int readerscounter=0;
 pthread_mutex_t mutex;
-pthread_cond_t cond;
+pthread_mutex_t mutexRW;
+pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
 Queue* q;
 double total_waiting_time=0.0;
 double total_service_time=0.0;
@@ -123,19 +124,19 @@ void process_request(const int socket_fd) {
             switch (request->operation) {
                 case GET:
                     /*Locks the mutex*/
-                    pthread_mutex_lock(&mutex);
+                    pthread_mutex_lock(&mutexRW);
                     readerscounter++;
                     // Read the given key from the database.
                     if (KISSDB_get(db, request->key, request->value))
                         sprintf(response_str, "GET ERROR\n");
                     else
                         sprintf(response_str, "GET OK: %s\n", request->value);
-                    pthread_mutex_unlock(&mutex);
+                    pthread_mutex_unlock(&mutexRW);
                     break;
                 case PUT:
                     if(writerscounter==0) {
                         /*Locks the mutex*/
-                        pthread_mutex_lock(&mutex);
+                        pthread_mutex_lock(&mutexRW);
                         writerscounter++;
                         // Write the given key/value pair to the database.
                         if (KISSDB_put(db, request->key, request->value))
@@ -144,7 +145,7 @@ void process_request(const int socket_fd) {
                             sprintf(response_str, "PUT OK\n");
                         /*Unlocks the mutex*/
                         writerscounter--;
-                        pthread_mutex_unlock(&mutex);
+                        pthread_mutex_unlock(&mutexRW);
                     }
                     break;
                 default:
@@ -175,7 +176,6 @@ qElement queue_get(){
     struct timeval tvwaitinq;
     double secs_now;
     double msecs_now;
-
     double secs_req;
     double msecs_req;
 
@@ -227,7 +227,6 @@ static void* connectionHandler(){
     double usec_start;
     double sec_done;
     double usec_done;
-    //signal(SIGTSTP,SIG_IGN);
     /*Wait until tasks is available*/
     while(1){
         current_request = queue_get();
@@ -281,10 +280,6 @@ void queue_add(qElement request){
     pthread_cond_signal(&cond);
 }
 void signalHandler(){
-    int i=0;
-    for(i= 0; i < MAX_PENDING_CONNECTIONS ; i++){
-        pthread_join(threadPool[i],NULL);
-    }
     // Free memory.
     if (db)
         free(db);
@@ -317,6 +312,8 @@ int main() {
     signal(SIGTSTP,signalHandler);
     /*Initialize the mutex variable*/
     pthread_mutex_init(&mutex,NULL);
+    pthread_mutex_init(&mutexRW,NULL);
+
     /*Initialize the time struct to generate statistics*/
     struct timeval tv0;
     qElement currert_request;
