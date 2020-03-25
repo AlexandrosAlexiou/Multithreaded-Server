@@ -20,18 +20,18 @@
 
 
 /*Declare global variables*/
-int writerscounter=0;
-int readerscounter=0;
-pthread_mutex_t mutex;
-pthread_mutex_t mutexRW;
+int writers_counter = 0;
+int readers_counter = 0;
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t writers_readers_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
+pthread_cond_t writers_readers_cond = PTHREAD_COND_INITIALIZER;
 Queue* q;
 double total_waiting_time=0.0;
 double total_service_time=0.0;
 int completed_requests=0;
 /*Declare the thread pool array*/
 pthread_t threadPool[MAX_PENDING_CONNECTIONS ];
-
 
 // Definition of the operation type.
 typedef enum operation {
@@ -123,29 +123,41 @@ void process_request(const int socket_fd) {
         if (request) {
             switch (request->operation) {
                 case GET:
+                    readers_counter++;
                     /*Locks the mutex*/
-                    pthread_mutex_lock(&mutexRW);
-                    readerscounter++;
+                    pthread_mutex_lock(&writers_readers_mutex);
+                    /*Wait for element to become available*/
+                    if(writers_counter != 0){
+                        printf("Thread %lu: \tWaiting for Writers to stop accessing the database\n", pthread_self());
+                        int k;
+                        if((k=pthread_cond_wait(&writers_readers_cond, &writers_readers_mutex)) != 0)
+                        {
+                            perror("Cond Wait Error");
+                        }
+                    }
                     // Read the given key from the database.
                     if (KISSDB_get(db, request->key, request->value))
                         sprintf(response_str, "GET ERROR\n");
                     else
                         sprintf(response_str, "GET OK: %s\n", request->value);
-                    pthread_mutex_unlock(&mutexRW);
+                    pthread_mutex_unlock(&writers_readers_mutex);
+                    readers_counter--;
                     break;
                 case PUT:
-                    if(writerscounter==0) {
-                        /*Locks the mutex*/
-                        pthread_mutex_lock(&mutexRW);
-                        writerscounter++;
-                        // Write the given key/value pair to the database.
-                        if (KISSDB_put(db, request->key, request->value))
-                            sprintf(response_str, "PUT ERROR\n");
-                        else
-                            sprintf(response_str, "PUT OK\n");
-                        /*Unlocks the mutex*/
-                        writerscounter--;
-                        pthread_mutex_unlock(&mutexRW);
+                    writers_counter++;
+                    /*Locks the mutex*/
+                    pthread_mutex_lock(&writers_readers_mutex);
+                    // Write the given key/value pair to the database.
+                    if (KISSDB_put(db, request->key, request->value))
+                        sprintf(response_str, "PUT ERROR\n");
+                    else
+                        sprintf(response_str, "PUT OK\n");
+                    /*Unlocks the mutex*/
+                    pthread_mutex_unlock(&writers_readers_mutex);
+                    writers_counter--;
+                    if(writers_counter == 0 && readers_counter>0){
+                        printf("================BROADCAST================\n");
+                        pthread_cond_broadcast(&writers_readers_cond);
                     }
                     break;
                 default:
@@ -310,10 +322,6 @@ int main() {
             client_addr;  // connector's address information
     //initialize signal to terminate the server
     signal(SIGTSTP,signalHandler);
-    /*Initialize the mutex variable*/
-    pthread_mutex_init(&mutex,NULL);
-    pthread_mutex_init(&mutexRW,NULL);
-
     /*Initialize the time struct to generate statistics*/
     struct timeval tv0;
     qElement currert_request;

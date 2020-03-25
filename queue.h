@@ -5,10 +5,8 @@
 #ifndef MULTITHREADED_SERVER_QUEUE_H
 #define MULTITHREADED_SERVER_QUEUE_H
 
-#endif //MULTITHREADED_SERVER_QUEUE_H
-
 #include<stdlib.h>
-#include <time.h>
+#include<time.h>
 
 /*
  * This is the type of variable that will be stored in the queue(request)
@@ -88,3 +86,6 @@ void push(Queue *Q, qElement element){
 qElement peek(Queue *Q){
     return Q->elements[Q->front];
 }
+
+#endif //MULTITHREADED_SERVER_QUEUE_H
+

@@ -15,7 +15,7 @@
 #define BUF_SIZE        2048
 #define MAXHOSTNAMELEN  1024
 #define MAX_STATION_ID   128
-#define ITER_COUNT          1
+#define ITER_COUNT         1
 #define GET_MODE           1
 #define PUT_MODE           2
 #define USER_MODE          3
@@ -38,7 +38,7 @@ void print_usage() {
     fprintf(stderr, "-p:             Repeatedly send PUT operations.\n");
 }
 
-/**lol
+/**
  * @name talk - Sends a message to the server and prints the response.
  * @server_addr: The server address.
  * @buffer: A buffer that contains a message for the server.
