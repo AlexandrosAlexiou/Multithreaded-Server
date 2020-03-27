@@ -20,9 +20,11 @@
 
 
 /*Declare global variables*/
-int writers_counter = 0;
-int readers_counter = 0;
+int num_writers_waiting = 0;
+int num_readers_active  = 0;
+int writer_active       = 0;
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t stats_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t writers_readers_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
 pthread_cond_t writers_readers_cond = PTHREAD_COND_INITIALIZER;
@@ -122,12 +124,12 @@ void process_request(const int socket_fd) {
         request = parse_request(request_str);
         if (request) {
             switch (request->operation) {
+                    
                 case GET:
-                    readers_counter++;
                     /*Locks the mutex*/
                     pthread_mutex_lock(&writers_readers_mutex);
                     /*Wait for element to become available*/
-                    if(writers_counter != 0){
+                    while(num_writers_waiting > 0 || writer_active){
                         printf("Thread %lu: \tWaiting for Writers to stop accessing the database\n", pthread_self());
                         int k;
                         if((k=pthread_cond_wait(&writers_readers_cond, &writers_readers_mutex)) != 0)
@@ -135,30 +137,43 @@ void process_request(const int socket_fd) {
                             perror("Cond Wait Error");
                         }
                     }
+                    pthread_mutex_unlock(&writers_readers_mutex);
                     // Read the given key from the database.
                     if (KISSDB_get(db, request->key, request->value))
                         sprintf(response_str, "GET ERROR\n");
                     else
                         sprintf(response_str, "GET OK: %s\n", request->value);
-                    pthread_mutex_unlock(&writers_readers_mutex);
-                    readers_counter--;
-                    break;
-                case PUT:
-                    writers_counter++;
-                    /*Locks the mutex*/
                     pthread_mutex_lock(&writers_readers_mutex);
+                    num_readers_active--;
+                    if(num_readers_active == 0){
+                        pthread_cond_broadcast(&writers_readers_cond);
+                    }
+                    pthread_mutex_unlock(&writers_readers_mutex);
+                    break;
+                    
+                case PUT:
+                    pthread_mutex_lock(&writers_readers_mutex);
+                    num_writers_waiting++;
+                    while(num_readers_active > 0 || writer_active == 1){
+                        printf("Thread %lu: \tWaiting for readers to stop accessing the database\n", pthread_self());
+                        int k;
+                        if((k=pthread_cond_wait(&writers_readers_cond, &writers_readers_mutex)) != 0)
+                        {
+                            perror("Cond Wait Error");
+                        }
+                    }
+                    num_writers_waiting--;
+                    writer_active     = 1;
+                    pthread_mutex_unlock(&writers_readers_mutex);
                     // Write the given key/value pair to the database.
                     if (KISSDB_put(db, request->key, request->value))
                         sprintf(response_str, "PUT ERROR\n");
                     else
                         sprintf(response_str, "PUT OK\n");
-                    /*Unlocks the mutex*/
+                    pthread_mutex_lock(&writers_readers_mutex);
+                    writer_active = 0;
+                    pthread_cond_broadcast(&writers_readers_cond);
                     pthread_mutex_unlock(&writers_readers_mutex);
-                    writers_counter--;
-                    if(writers_counter == 0 && readers_counter>0){
-                        printf("================BROADCAST================\n");
-                        pthread_cond_broadcast(&writers_readers_cond);
-                    }
                     break;
                 default:
                     // Unsupported operation.
@@ -166,7 +181,6 @@ void process_request(const int socket_fd) {
             }
             // Reply to the client.
             write_str_to_socket(socket_fd, response_str, strlen(response_str));
-            close(socket_fd);
 
             if (request)
                 free(request);
@@ -248,9 +262,10 @@ static void* connectionHandler(){
         gettimeofday(&tvprocessstart,NULL);
         process_request(connfd);
         gettimeofday(&tvprocessdone,NULL);
+        close(connfd);
 
-        /*Locks the mutex*/
-        pthread_mutex_lock(&mutex);
+        /*Locks the stats mutex*/
+        pthread_mutex_lock(&stats_mutex);
         sec_start=tvprocessstart.tv_sec;
         usec_start=tvprocessstart.tv_usec;
         sec_done=tvprocessdone.tv_sec;
@@ -266,8 +281,8 @@ static void* connectionHandler(){
 
         total_service_time+=sec_done-sec_start;
         completed_requests+=1;
-        /*Unlocks the mutex*/
-        pthread_mutex_unlock(&mutex);
+        /*Unlocks stats the mutex*/
+        pthread_mutex_unlock(&stats_mutex);
 
     }
     return NULL;
