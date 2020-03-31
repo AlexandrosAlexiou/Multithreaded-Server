@@ -4,8 +4,9 @@ OBJECTS =
 
 all: client server test
 
-client: client.c  test.c utils.o
+client: client.c utils.o
 	$(CC) $(CFLAGS) -o client client.c utils.o -lpthread
+	$(CC) -o test test.c
 
 server: server.c utils.o kissdb.o queue.h
 	$(CC) $(CFLAGS) -o server server.c utils.o kissdb.o -lpthread
@@ -14,4 +15,4 @@ server: server.c utils.o kissdb.o queue.h
 	$(CC) $(CFLAGS) -c $<
 
 clean:
-	rm -f *.o client server *.db
+	rm -f *.o test client server *.db 

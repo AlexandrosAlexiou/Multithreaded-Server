@@ -16,7 +16,7 @@
 #define KEY_SIZE                 128
 #define HASH_SIZE               1024
 #define VALUE_SIZE              1024
-#define MAX_PENDING_CONNECTIONS   10
+#define MAX_PENDING_CONNECTIONS   30
 
 
 /*Declare global variables*/
@@ -164,12 +164,13 @@ void process_request(const int socket_fd) {
                     }
                     num_writers_waiting--;
                     writer_active     = 1;
-                    pthread_mutex_unlock(&writers_readers_mutex);
                     // Write the given key/value pair to the database.
                     if (KISSDB_put(db, request->key, request->value))
                         sprintf(response_str, "PUT ERROR\n");
                     else
                         sprintf(response_str, "PUT OK\n");
+                    pthread_mutex_unlock(&writers_readers_mutex);
+                    
                     pthread_mutex_lock(&writers_readers_mutex);
                     writer_active = 0;
                     pthread_cond_broadcast(&writers_readers_cond);
