@@ -1,5 +1,4 @@
 # A Multithreaded Server using the Pthread library.
-
 ## The server is connected with a simple key/value Database developed by [Adam Ierymenko](https://github.com/adamierymenko).
 * Clients can connect to the server and perform PUT or GET requests.  
 * The producer thread adds the incoming connections into a circular queue, the worker threads pop the incoming connections from the queue and they process the request.  
